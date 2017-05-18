@@ -33,6 +33,7 @@ static NSString *gAppId = nil;
     //InMobi SDK initialization with the account id setup @Mopub dashboard
     [IMSdk initWithAccountID:[info valueForKey:@"accountid"]];
 
+    //1491408620590l [appId longLongValue]   1492763427180l 1490507084124l
     self.inMobiAd = [[IMNative alloc] initWithPlacementId:[appId longLongValue]];
     
     /*
@@ -71,33 +72,11 @@ static NSString *gAppId = nil;
 
 -(void)nativeDidFinishLoading:(IMNative *)imnative{
     
-    NSLog(@"%@",[imnative adContent]);
+    NSLog(@"%@",[imnative customAdContent]);
     
     _adAdapter = [[InMobiNativeAdAdapter alloc] initWithInMobiNativeAd:imnative];
     MPNativeAd *interfaceAd = [[MPNativeAd alloc] initWithAdAdapter:_adAdapter];
-    
-    NSMutableArray *imageURLs = [NSMutableArray array];
-    
-    if ([[interfaceAd.properties objectForKey:kAdIconImageKey] length]) {
-        if (![MPNativeAdUtils addURLString:[interfaceAd.properties objectForKey:kAdIconImageKey] toURLArray:imageURLs]) {
-            [self.delegate nativeCustomEvent:self didFailToLoadAdWithError:MPNativeAdNSErrorForInvalidImageURL()];
-        }
-    }
-    
-    if ([[interfaceAd.properties objectForKey:kAdMainImageKey] length]) {
-        if (![MPNativeAdUtils addURLString:[interfaceAd.properties objectForKey:kAdMainImageKey] toURLArray:imageURLs]) {
-            [self.delegate nativeCustomEvent:self didFailToLoadAdWithError:MPNativeAdNSErrorForInvalidImageURL()];
-        }
-    }
-    
-    [super precacheImagesWithURLs:imageURLs completionBlock:^(NSArray *errors) {
-        if (errors) {
-            MPLogDebug(@"%@", errors);
-            [self.delegate nativeCustomEvent:self didFailToLoadAdWithError:MPNativeAdNSErrorForImageDownloadFailure()];
-        } else {
-            [self.delegate nativeCustomEvent:self didLoadAd:interfaceAd];
-        }
-    }];
+    [self.delegate nativeCustomEvent:self didLoadAd:interfaceAd];
 }
 
 -(void)native:(IMNative*)native didFailToLoadWithError:(IMRequestStatus*)error{
@@ -132,5 +111,18 @@ static NSString *gAppId = nil;
 -(void) dealloc{
     NSLog(@"InMobi Native custom event class destroyed");
 }
+
+-(void)native:(IMNative *)native didInteractWithParams:(NSDictionary *)params{
+    NSLog(@"User clicked"); // Called when the user clicks on the ad.
+}
+
+-(void)nativeDidFinishPlayingMedia:(IMNative*)native{
+    NSLog(@"The Video has finished playing"); // Called when the video has finished playing. Used for preroll use-case
+}
+
+-(void)native:(IMNative *)native rewardActionCompletedWithRewards:(NSDictionary *)rewards{
+    NSLog(@"Rewarded"); // Called when the user is rewarded to watch the ad.
+}
+
 
 @end

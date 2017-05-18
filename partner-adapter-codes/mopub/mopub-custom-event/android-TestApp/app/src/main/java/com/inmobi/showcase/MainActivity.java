@@ -23,11 +23,6 @@ public class MainActivity extends Activity implements OnClickListener, MoPubInte
 
 	private MoPubView mMopubBannerView;
 	private MoPubInterstitial mMopubInterstitialView;
-	private Button BtnRefreshAd;
-	private Button BtnLoadInterstitial;
-	private Button BtnLoadNative;
-	private Button BtnLoadNativeStrands;
-	private Button BtnLoadRewarded;
 	private static boolean rewardedVideoInitialized;
 	private static final String TAG = MainActivity.class.getSimpleName();
 
@@ -38,17 +33,15 @@ public class MainActivity extends Activity implements OnClickListener, MoPubInte
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		MoPub.onCreate(this);
-		BtnRefreshAd = (Button) findViewById(R.id.btnRefreshAd);
-		BtnLoadInterstitial = (Button) findViewById(R.id.btnLoadInterstitial);
+		Button btnRefreshAd = (Button) findViewById(R.id.btnRefreshAd);
+		Button btnLoadInterstitial = (Button) findViewById(R.id.btnLoadInterstitial);
 
-		BtnLoadRewarded = (Button) findViewById(R.id.btnLoadRewarded);
-		BtnLoadNative = (Button) findViewById(R.id.btnLoadNative);
-		BtnLoadNativeStrands = (Button) findViewById(R.id.btnLoadNativeStrands);
-		BtnRefreshAd.setOnClickListener(this);
-		BtnLoadInterstitial.setOnClickListener(this);
-		BtnLoadNative.setOnClickListener(this);
-		BtnLoadRewarded.setOnClickListener(this);
-		BtnLoadNativeStrands.setOnClickListener(this);
+		Button btnLoadRewarded = (Button) findViewById(R.id.btnLoadRewarded);
+		Button btnLoadNative = (Button) findViewById(R.id.btnLoadNative);
+		btnRefreshAd.setOnClickListener(this);
+		btnLoadInterstitial.setOnClickListener(this);
+		btnLoadNative.setOnClickListener(this);
+		btnLoadRewarded.setOnClickListener(this);
 		// Initialize Ad components
 		mMopubBannerView = (MoPubView) findViewById(R.id.bannerview);
 		mMopubBannerView.setAdUnitId("bf140ef38903425da67953cbeb1c7631");
@@ -90,9 +83,6 @@ public class MainActivity extends Activity implements OnClickListener, MoPubInte
 			case R.id.btnLoadNative:
 				getNativeAd();
 				break;
-			case R.id.btnLoadNativeStrands:
-				getNativeStrands();
-				break;
 			case R.id.btnLoadRewarded:
 				getRewardedAd();
 		}
@@ -105,12 +95,6 @@ public class MainActivity extends Activity implements OnClickListener, MoPubInte
 		}
 		MoPubRewardedVideos.setRewardedVideoListener(this);
 		MoPubRewardedVideos.loadRewardedVideo("a20bf45862464a3c825be02334f3ab40");
-	}
-
-	public void getNativeStrands() {
-
-		Intent i = new Intent(this,NativeAdActivity.class);
-		startActivity(i);
 	}
 
 	public void getNativeAd() {

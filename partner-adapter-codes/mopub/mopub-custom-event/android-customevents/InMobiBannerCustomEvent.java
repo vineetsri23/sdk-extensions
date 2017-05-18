@@ -1,4 +1,4 @@
-package com.inmobi.showcase;
+package com.mopub.nativeads;
 
 import android.content.Context;
 import android.util.DisplayMetrics;
@@ -12,6 +12,7 @@ import com.inmobi.ads.InMobiAdRequestStatus.StatusCode;
 import com.inmobi.ads.InMobiBanner;
 import com.inmobi.ads.InMobiBanner.AnimationType;
 import com.inmobi.ads.InMobiBanner.BannerAdListener;
+import com.inmobi.sdk.InMobiSdk;
 import com.mopub.common.MoPub;
 import com.mopub.mobileads.CustomEventBanner;
 import com.mopub.mobileads.MoPubErrorCode;

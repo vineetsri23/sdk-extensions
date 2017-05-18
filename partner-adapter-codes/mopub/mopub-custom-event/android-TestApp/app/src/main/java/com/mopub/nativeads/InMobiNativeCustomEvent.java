@@ -1,47 +1,48 @@
-package com.inmobi.showcase;
+package com.mopub.nativeads;
 
 
 import android.app.Activity;
 import android.content.Context;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 
 import com.inmobi.ads.InMobiAdRequestStatus;
-import com.inmobi.ads.InMobiNativeStrand;
-import com.inmobi.ads.InMobiNativeStrand.NativeStrandAdListener;
+import com.inmobi.ads.InMobiNative;
+import com.inmobi.ads.InMobiNative.NativeAdListener;
 import com.inmobi.sdk.InMobiSdk;
 import com.mopub.common.MoPub;
-import com.mopub.nativeads.BaseNativeAd;
-import com.mopub.nativeads.CustomEventNative;
-import com.mopub.nativeads.MoPubAdRenderer;
-import com.mopub.nativeads.NativeClickHandler;
-import com.mopub.nativeads.NativeErrorCode;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import static com.mopub.nativeads.NativeImageHelper.preCacheImages;
+
 /*
- * Tested with InMobi SDK  6.0.4
+ * Tested with InMobi SDK  6.2.0
  */
 
+public class InMobiNativeCustomEvent extends CustomEventNative {
 
-public class InMobiNativeStrandCustomEvent extends CustomEventNative {
+    public static final String TAG = InMobiNativeCustomEvent.class.getSimpleName();
 
-    private static final String TAG = InMobiNativeStrandCustomEvent.class.getSimpleName();
     private static final String SERVER_EXTRA_ACCOUNT_ID = "accountid";
+
     private static final String SERVER_EXTRA_PLACEMENT_ID = "placementid";
 
     private static boolean mIsInMobiSdkInitialized = false;
+
 
     @Override
     protected void loadNativeAd(@NonNull Context context,
                                 @NonNull CustomEventNativeListener customEventNativeListener,
                                 @NonNull Map<String, Object> localExtras, @NonNull Map<String,
             String> serverExtras) {
+
+        Log.d(TAG, "Reached native adapter");
 
         String accountId;
         long placementId;
@@ -55,101 +56,108 @@ public class InMobiNativeStrandCustomEvent extends CustomEventNative {
             mIsInMobiSdkInitialized = true;
         }
 
-        /*
+		/*
             Sample for setting up the InMobi SDK Demographic params.
             Publisher need to set the values of params as they want.
+         */
 
-        InMobiSdk.setAreaCode("areacode");
+		/*InMobiSdk.setAreaCode("areacode");
         InMobiSdk.setEducation(Education.HIGH_SCHOOL_OR_LESS);
-        InMobiSdk.setGender(Gender.FEMALE);
-        InMobiSdk.setIncome(1000);
-        InMobiSdk.setAge(32);
-        InMobiSdk.setPostalCode("postalcode");
-        InMobiSdk.setLogLevel(LogLevel.DEBUG);
-        InMobiSdk.setLocationWithCityStateCountry("blore", "kar", "india");
-        InMobiSdk.setLanguage("ENG");
-        InMobiSdk.setInterests("dance");
-        InMobiSdk.setEthnicity(Ethnicity.ASIAN);
-        InMobiSdk.setYearOfBirth(1980);
-        */
+		InMobiSdk.setGender(Gender.MALE);
+		InMobiSdk.setIncome(1000);
+		InMobiSdk.setAge(23);
+		InMobiSdk.setPostalCode("postalcode");
+		InMobiSdk.setLogLevel(LogLevel.DEBUG);
+		InMobiSdk.setLocationWithCityStateCountry("blore", "kar", "india");
+		InMobiSdk.setLanguage("ENG");
+		InMobiSdk.setInterests("dance");
+		InMobiSdk.setEthnicity(Ethnicity.ASIAN);
+		InMobiSdk.setYearOfBirth(1980);*/
 
-
-
-        /*
+		/*
             Mandatory Params to set in the code by the publisher to identify the supply source type
-        */
+         */
 
         Map<String, String> map = new HashMap<>();
         map.put("tp", "c_mopub");
         map.put("tp-ver", MoPub.SDK_VERSION);
 
-        final InMobiNativeStrandAd inMobiNativeStrandAd = new InMobiNativeStrandAd(context,
-                customEventNativeListener, placementId);
-        inMobiNativeStrandAd.setExtras(map);
-        inMobiNativeStrandAd.loadAd();
-    }
+        final InMobiNativeAd inMobiStaticNativeAd =
+                new InMobiNativeAd(context,
+                        customEventNativeListener, placementId);
 
-    public static class InMobiNativeStrandRenderer implements
-            MoPubAdRenderer<InMobiNativeStrandAd> {
-
-        @Override
-        @NonNull
-        public View createAdView(@NonNull Context context, @Nullable ViewGroup parent) {
-            final LinearLayout linearLayout = new LinearLayout(context);
-            return linearLayout;
-        }
-
-        @Override
-        public void renderAdView(@NonNull View view,
-                                 @NonNull InMobiNativeStrandAd inMobiNativeStrandAd) {
-            ViewGroup parent = (ViewGroup) view;
-            View strandView;
-            if (parent.getChildAt(0) == null) {
-                strandView = inMobiNativeStrandAd.mInMobiNativeStrand.getStrandView(null, parent);
-                //Add the child view into parent View.
-                parent.addView(strandView);
-            } else {
-                //Child view is already in the parent view. So don't add it again.
-                strandView = inMobiNativeStrandAd.mInMobiNativeStrand.getStrandView(parent
-                        .getChildAt(0), parent);
-            }
-        }
-
-        @Override
-        public boolean supports(@NonNull BaseNativeAd baseNativeAd) {
-            return baseNativeAd instanceof InMobiNativeStrandAd;
-        }
+        inMobiStaticNativeAd.setExtras(map);
+        inMobiStaticNativeAd.loadAd();
     }
 
 
-    private static class InMobiNativeStrandAd extends BaseNativeAd implements
-            NativeStrandAdListener {
+    public static class InMobiNativeAd extends BaseNativeAd implements
+            NativeAdListener {
 
-        private static final String TAG = "InMobiNativeStrandAd";
+        private static final String TAG = "InMobiNativeAd";
         private final CustomEventNativeListener mCustomEventNativeListener;
         private final NativeClickHandler mNativeClickHandler;
-        private final InMobiNativeStrand mInMobiNativeStrand;
+        private final InMobiNative mInMobiNative;
         private boolean mIsImpressionRecorded = false;
         private boolean mIsClickRecorded = false;
+        private final Context mContext;
 
-        InMobiNativeStrandAd(@NonNull final Context context,
-                             @NonNull final CustomEventNativeListener customEventNativeListener,
-                             long placementId) {
+        InMobiNativeAd(@NonNull final Context context,
+                       @NonNull final CustomEventNativeListener customEventNativeListener,
+                       long placementId) {
+            mContext = context;
             mNativeClickHandler = new NativeClickHandler(context);
             mCustomEventNativeListener = customEventNativeListener;
             if (context instanceof Activity) {
-                mInMobiNativeStrand = new InMobiNativeStrand((Activity) context, placementId, this);
+                mInMobiNative = new InMobiNative((Activity) context, placementId, this);
             } else {
-                mInMobiNativeStrand = new InMobiNativeStrand(context, placementId, this);
+                mInMobiNative = new InMobiNative(context, placementId, this);
             }
         }
 
         void setExtras(Map<String, String> map) {
-            mInMobiNativeStrand.setExtras(map);
+            mInMobiNative.setExtras(map);
         }
 
         void loadAd() {
-            mInMobiNativeStrand.load();
+            mInMobiNative.load();
+        }
+
+        /**
+         * Returns the String corresponding to the ad's title.
+         */
+        final public String getAdTitle() {
+            return mInMobiNative.getAdTitle();
+        }
+
+        /**
+         * Returns the String corresponding to the ad's description text. May be null.
+         */
+        final public String getAdDescription() {
+            return mInMobiNative.getAdDescription();
+        }
+
+
+        /**
+         * Returns the String url corresponding to the ad's icon image. May be null.
+         */
+        final public String getAdIconUrl() {
+            return mInMobiNative.getAdIconUrl();
+        }
+
+        /**
+         * Returns the Call To Action String (i.e. "Install" or "Learn More") associated with this ad.
+         */
+        final public String getAdCtaText() {
+            return mInMobiNative.getAdCtaText();
+        }
+
+        final public Float getAdRating() {
+            return mInMobiNative.getAdRating();
+        }
+
+        final public View getPrimaryAdView(ViewGroup parent) {
+            return mInMobiNative.getPrimaryViewOfWidth(null, parent, parent.getWidth());
         }
 
         @Override
@@ -159,7 +167,7 @@ public class InMobiNativeStrandCustomEvent extends CustomEventNative {
 
         @Override
         public void destroy() {
-            mInMobiNativeStrand.destroy();
+            mInMobiNative.destroy();
         }
 
         @Override
@@ -167,13 +175,29 @@ public class InMobiNativeStrandCustomEvent extends CustomEventNative {
         }
 
         @Override
-        public void onAdLoadSucceeded(@NonNull InMobiNativeStrand nativeStrand) {
-            Log.i(TAG, "InMobi Native Strand loaded successfully");
-            mCustomEventNativeListener.onNativeAdLoaded(this);
+        public void onAdLoadSucceeded(@NonNull InMobiNative inMobiNative) {
+            Log.i(TAG, "InMobi Native Ad loaded successfully");
+
+            final List<String> imageUrls = new ArrayList<>();
+            final String iconImageUrl = getAdIconUrl();
+            if (iconImageUrl != null) {
+                imageUrls.add(iconImageUrl);
+            }
+            preCacheImages(mContext, imageUrls, new NativeImageHelper.ImageListener() {
+                @Override
+                public void onImagesCached() {
+                    mCustomEventNativeListener.onNativeAdLoaded(InMobiNativeAd.this);
+                }
+
+                @Override
+                public void onImagesFailedToCache(NativeErrorCode errorCode) {
+                    mCustomEventNativeListener.onNativeAdFailed(errorCode);
+                }
+            });
         }
 
         @Override
-        public void onAdLoadFailed(@NonNull InMobiNativeStrand inMobiNativeStrand,
+        public void onAdLoadFailed(@NonNull InMobiNative InMobiNative,
                                    @NonNull InMobiAdRequestStatus requestStatus) {
             String errorMessage = "Failed to load Native Strand:";
             switch (requestStatus.getStatusCode()) {
@@ -235,17 +259,39 @@ public class InMobiNativeStrandCustomEvent extends CustomEventNative {
         }
 
         @Override
-        public void onAdImpressed(@NonNull InMobiNativeStrand inMobiNativeStrand) {
-            mIsImpressionRecorded = true;
-            notifyAdImpressed();
+        public void onAdFullScreenDismissed(InMobiNative inMobiNative) {
+
         }
 
         @Override
-        public void onAdClicked(@NonNull InMobiNativeStrand inMobiNativeStrand) {
+        public void onAdFullScreenDisplayed(InMobiNative inMobiNative) {
+
+        }
+
+        @Override
+        public void onUserWillLeaveApplication(InMobiNative inMobiNative) {
+
+        }
+
+        @Override
+        public void onAdImpressed(@NonNull InMobiNative InMobiNative) {
+            if (!mIsImpressionRecorded) {
+                mIsImpressionRecorded = true;
+                notifyAdImpressed();
+            }
+        }
+
+        @Override
+        public void onAdClicked(@NonNull InMobiNative InMobiNative) {
             if (!mIsClickRecorded) {
                 notifyAdClicked();
                 mIsClickRecorded = true;
             }
+        }
+
+        @Override
+        public void onMediaPlaybackComplete(@NonNull InMobiNative inMobiNative) {
+
         }
     }
 }

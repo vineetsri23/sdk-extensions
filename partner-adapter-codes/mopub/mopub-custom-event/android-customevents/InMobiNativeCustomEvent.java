@@ -1,4 +1,5 @@
-package com.inmobi.showcase;
+package com.mopub.nativeads;
+
 
 import android.app.Activity;
 import android.content.Context;
@@ -12,25 +13,12 @@ import com.inmobi.ads.InMobiNative;
 import com.inmobi.ads.InMobiNative.NativeAdListener;
 import com.inmobi.sdk.InMobiSdk;
 import com.mopub.common.MoPub;
-import com.mopub.common.logging.MoPubLog;
-import com.mopub.nativeads.CustomEventNative;
-import com.mopub.nativeads.ImpressionTracker;
-import com.mopub.nativeads.NativeClickHandler;
-import com.mopub.nativeads.NativeErrorCode;
-import com.mopub.nativeads.NativeImageHelper;
-import com.mopub.nativeads.StaticNativeAd;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONTokener;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.mopub.common.util.Json.getJsonValue;
-import static com.mopub.common.util.Numbers.parseDouble;
 import static com.mopub.nativeads.NativeImageHelper.preCacheImages;
 
 /*
@@ -39,7 +27,7 @@ import static com.mopub.nativeads.NativeImageHelper.preCacheImages;
 
 public class InMobiNativeCustomEvent extends CustomEventNative {
 
-    private static final String TAG = InMobiNativeCustomEvent.class.getSimpleName();
+    public static final String TAG = InMobiNativeCustomEvent.class.getSimpleName();
 
     private static final String SERVER_EXTRA_ACCOUNT_ID = "accountid";
 
@@ -94,256 +82,216 @@ public class InMobiNativeCustomEvent extends CustomEventNative {
         map.put("tp", "c_mopub");
         map.put("tp-ver", MoPub.SDK_VERSION);
 
-        final InMobiStaticNativeAd inMobiStaticNativeAd =
-                new InMobiStaticNativeAd(context,
-                        new ImpressionTracker(context),
-                        new NativeClickHandler(context),
-                        customEventNativeListener);
-        if (context instanceof Activity) {
-            inMobiStaticNativeAd.setIMNative(new InMobiNative((Activity) context, placementId,
-                    inMobiStaticNativeAd));
-        } else {
-            inMobiStaticNativeAd.setIMNative(new InMobiNative(placementId,
-                    inMobiStaticNativeAd));
-        }
+        final InMobiNativeAd inMobiStaticNativeAd =
+                new InMobiNativeAd(context,
+                        customEventNativeListener, placementId);
+
         inMobiStaticNativeAd.setExtras(map);
         inMobiStaticNativeAd.loadAd();
     }
 
-    static class InMobiStaticNativeAd extends StaticNativeAd implements NativeAdListener,
-            InMobiNative.NativeAdEventsListener {
-        static final int IMPRESSION_MIN_TIME_VIEWED = 1000;
 
-        // Modifiable keys
-        static final String TITLE = "title";
-        static final String DESCRIPTION = "description";
-        static final String SCREENSHOTS = "screenshots";
-        static final String ICON = "icon";
-        static final String LANDING_URL = "landingURL";
-        static final String CTA = "cta";
-        static final String RATING = "rating";
+    public static class InMobiNativeAd extends BaseNativeAd implements
+            NativeAdListener {
 
-        // Constant keys
-        static final String URL = "url";
-
-        private final Context mContext;
+        private static final String TAG = "InMobiNativeAd";
         private final CustomEventNativeListener mCustomEventNativeListener;
-        private final ImpressionTracker mImpressionTracker;
         private final NativeClickHandler mNativeClickHandler;
-        private InMobiNative mImNative;
+        private final InMobiNative mInMobiNative;
+        private boolean mIsImpressionRecorded = false;
+        private boolean mIsClickRecorded = false;
+        private final Context mContext;
 
-        InMobiStaticNativeAd(final Context context,
-                             final ImpressionTracker impressionTracker,
-                             final NativeClickHandler nativeClickHandler,
-                             final CustomEventNativeListener customEventNativeListener) {
-            mContext = context.getApplicationContext();
-            mImpressionTracker = impressionTracker;
-            mNativeClickHandler = nativeClickHandler;
+        InMobiNativeAd(@NonNull final Context context,
+                       @NonNull final CustomEventNativeListener customEventNativeListener,
+                       long placementId) {
+            mContext = context;
+            mNativeClickHandler = new NativeClickHandler(context);
             mCustomEventNativeListener = customEventNativeListener;
-        }
-
-        void setIMNative(final InMobiNative imNative) {
-            mImNative = imNative;
-            mImNative.setNativeAdEventListener(this);
+            if (context instanceof Activity) {
+                mInMobiNative = new InMobiNative((Activity) context, placementId, this);
+            } else {
+                mInMobiNative = new InMobiNative(context, placementId, this);
+            }
         }
 
         void setExtras(Map<String, String> map) {
-            mImNative.setExtras(map);
+            mInMobiNative.setExtras(map);
         }
 
         void loadAd() {
-            mImNative.load();
+            mInMobiNative.load();
+        }
+
+        /**
+         * Returns the String corresponding to the ad's title.
+         */
+        final public String getAdTitle() {
+            return mInMobiNative.getAdTitle();
+        }
+
+        /**
+         * Returns the String corresponding to the ad's description text. May be null.
+         */
+        final public String getAdDescription() {
+            return mInMobiNative.getAdDescription();
         }
 
 
-        // Lifecycle Handlers
-        @Override
-        public void prepare(@NonNull final View view) {
-            if (view instanceof ViewGroup) {
-                InMobiNative.bind(view, mImNative);
-            } else if (view.getParent() instanceof ViewGroup) {
-                InMobiNative.bind((ViewGroup) (view.getParent()), mImNative);
-            } else {
-                Log.e("MoPub", "InMobi did not receive ViewGroup to attachToView, unable to " +
-                        "record impressions");
-            }
-            mImpressionTracker.addView(view, this);
-            mNativeClickHandler.setOnClickListener(view, this);
+        /**
+         * Returns the String url corresponding to the ad's icon image. May be null.
+         */
+        final public String getAdIconUrl() {
+            return mInMobiNative.getAdIconUrl();
+        }
+
+        /**
+         * Returns the Call To Action String (i.e. "Install" or "Learn More") associated with this ad.
+         */
+        final public String getAdCtaText() {
+            return mInMobiNative.getAdCtaText();
+        }
+
+        final public Float getAdRating() {
+            return mInMobiNative.getAdRating();
+        }
+
+        final public View getPrimaryAdView(ViewGroup parent) {
+            return mInMobiNative.getPrimaryViewOfWidth(null, parent, parent.getWidth());
         }
 
         @Override
-        public void clear(@NonNull final View view) {
-            InMobiNative.unbind(view);
-            mImpressionTracker.removeView(view);
+        public void clear(@NonNull View view) {
             mNativeClickHandler.clearOnClickListener(view);
         }
 
         @Override
         public void destroy() {
-            mImpressionTracker.destroy();
-        }
-
-        // Event Handlers
-        @Override
-        public void recordImpression(@NonNull final View view) {
-//			notifyAdImpressed();
+            mInMobiNative.destroy();
         }
 
         @Override
-        public void handleClick(@NonNull final View view) {
-            notifyAdClicked();
-            mNativeClickHandler.openClickDestinationUrl(getClickDestinationUrl(), view);
-            mImNative.reportAdClick(null);
-        }
-
-        void parseJson(final InMobiNative imNative) throws JSONException {
-            final JSONTokener jsonTokener = new JSONTokener((String) imNative.getAdContent());
-            final JSONObject jsonObject = new JSONObject(jsonTokener);
-
-            setTitle(getJsonValue(jsonObject, TITLE, String.class));
-            String text = getJsonValue(jsonObject, DESCRIPTION, String.class);
-            if (text != null)
-                setText(text);
-            final JSONObject screenShotJsonObject = getJsonValue(jsonObject, SCREENSHOTS,
-                    JSONObject.class);
-            if (screenShotJsonObject != null) {
-                setMainImageUrl(getJsonValue(screenShotJsonObject, URL, String.class));
-            }
-
-            final JSONObject iconJsonObject = getJsonValue(jsonObject, ICON, JSONObject.class);
-            if (iconJsonObject != null) {
-                setIconImageUrl(getJsonValue(iconJsonObject, URL, String.class));
-            }
-
-            final String clickDestinationUrl = getJsonValue(jsonObject, LANDING_URL, String.class);
-            if (clickDestinationUrl == null) {
-                final String errorMessage = "InMobi JSON response missing required key: "
-                        + LANDING_URL + ". Failing over.";
-                MoPubLog.d(errorMessage);
-                throw new JSONException(errorMessage);
-            }
-
-            setClickDestinationUrl(clickDestinationUrl);
-            String cta = getJsonValue(jsonObject, CTA, String.class);
-            if (cta != null)
-                setCallToAction(cta);
-            try {
-                if (jsonObject.opt(RATING) != null) {
-                    setStarRating(parseDouble(jsonObject.opt(RATING)));
-                }
-            } catch (ClassCastException e) {
-                Log.d("MoPub", "Unable to set invalid star rating for InMobi Native.");
-            }
-            setImpressionMinTimeViewed(IMPRESSION_MIN_TIME_VIEWED);
+        public void prepare(@NonNull View view) {
         }
 
         @Override
-        public void onAdDismissed(InMobiNative arg0) {
-            Log.d(TAG, "Native Ad is dismissed");
-        }
+        public void onAdLoadSucceeded(@NonNull InMobiNative inMobiNative) {
+            Log.i(TAG, "InMobi Native Ad loaded successfully");
 
-        @Override
-        public void onAdDisplayed(InMobiNative arg0) {
-            Log.d(TAG, "Native Ad is displayed");
-        }
-
-        @Override
-        public void onAdLoadFailed(InMobiNative arg0, InMobiAdRequestStatus arg1) {
-            Log.d(TAG, "Native ad failed to load");
-            String errorMsg = "";
-            switch (arg1.getStatusCode()) {
-                case INTERNAL_ERROR:
-                    errorMsg = "INTERNAL_ERROR";
-                    break;
-                case REQUEST_INVALID:
-                    errorMsg = "INVALID_REQUEST";
-                    break;
-                case NETWORK_UNREACHABLE:
-                    errorMsg = "NETWORK_UNREACHABLE";
-                    break;
-                case NO_FILL:
-                    errorMsg = "NO_FILL";
-                    break;
-                case REQUEST_PENDING:
-                    errorMsg = "REQUEST_PENDING";
-                    break;
-                case REQUEST_TIMED_OUT:
-                    errorMsg = "REQUEST_TIMED_OUT";
-                    break;
-                case SERVER_ERROR:
-                    errorMsg = "SERVER_ERROR";
-                    break;
-                case AD_ACTIVE:
-                    errorMsg = "AD_ACTIVE";
-                    break;
-                case EARLY_REFRESH_REQUEST:
-                    errorMsg = "EARLY_REFRESH_REQUEST";
-                    break;
-                default:
-                    errorMsg = "NETWORK_ERROR";
-                    break;
+            final List<String> imageUrls = new ArrayList<>();
+            final String iconImageUrl = getAdIconUrl();
+            if (iconImageUrl != null) {
+                imageUrls.add(iconImageUrl);
             }
-            if (errorMsg == "INVALID_REQUEST") {
-                mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode
-                        .NETWORK_INVALID_REQUEST);
-            } else if (errorMsg == "INTERNAL_ERROR" || errorMsg == "NETWORK_ERROR") {
-                mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.NETWORK_INVALID_STATE);
-            } else if (errorMsg == "NO_FILL") {
-                mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.NETWORK_NO_FILL);
-            } else if (errorMsg == "REQUEST_TIMED_OUT") {
-                mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.NETWORK_TIMEOUT);
-            } else if (errorMsg == "NETWORK_UNREACHABLE") {
-                mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.CONNECTION_ERROR);
-            } else {
-                mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.UNSPECIFIED);
-            }
-        }
-
-        @Override
-        public void onAdLoadSucceeded(InMobiNative imNative) {
-            Log.v(TAG, "Ad loaded:" + imNative.getAdContent().toString());
-            try {
-                parseJson(imNative);
-            } catch (JSONException e) {
-                mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.INVALID_RESPONSE);
-                return;
-            }
-
-            final List<String> imageUrls = new ArrayList<String>();
-            final String mainImageUrl = getMainImageUrl();
-            if (mainImageUrl != null) {
-                imageUrls.add(mainImageUrl);
-            }
-
-            final String iconUrl = getIconImageUrl();
-            if (iconUrl != null) {
-                imageUrls.add(iconUrl);
-            }
-
             preCacheImages(mContext, imageUrls, new NativeImageHelper.ImageListener() {
                 @Override
                 public void onImagesCached() {
-                    Log.v(TAG, "image cached");
-                    mCustomEventNativeListener.onNativeAdLoaded(InMobiStaticNativeAd.this);
+                    mCustomEventNativeListener.onNativeAdLoaded(InMobiNativeAd.this);
                 }
 
                 @Override
                 public void onImagesFailedToCache(NativeErrorCode errorCode) {
-                    Log.v(TAG, "image failed to cache");
                     mCustomEventNativeListener.onNativeAdFailed(errorCode);
                 }
             });
         }
 
         @Override
-        public void onUserLeftApplication(InMobiNative arg0) {
-            Log.d(TAG, "User left application");
+        public void onAdLoadFailed(@NonNull InMobiNative InMobiNative,
+                                   @NonNull InMobiAdRequestStatus requestStatus) {
+            String errorMessage = "Failed to load Native Strand:";
+            switch (requestStatus.getStatusCode()) {
+                case INTERNAL_ERROR:
+                    errorMessage += "INTERNAL_ERROR";
+                    mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode
+                            .NETWORK_INVALID_STATE);
+                    break;
+
+                case REQUEST_INVALID:
+                    errorMessage += "INVALID_REQUEST";
+                    mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode
+                            .NETWORK_INVALID_REQUEST);
+                    break;
+
+                case NETWORK_UNREACHABLE:
+                    errorMessage += "NETWORK_UNREACHABLE";
+                    mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.CONNECTION_ERROR);
+                    break;
+
+                case NO_FILL:
+                    errorMessage += "NO_FILL";
+                    mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.NETWORK_NO_FILL);
+                    break;
+
+                case REQUEST_PENDING:
+                    errorMessage += "REQUEST_PENDING";
+                    mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.UNSPECIFIED);
+                    break;
+
+                case REQUEST_TIMED_OUT:
+                    errorMessage += "REQUEST_TIMED_OUT";
+                    mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.NETWORK_TIMEOUT);
+                    break;
+
+                case SERVER_ERROR:
+                    errorMessage += "SERVER_ERROR";
+                    mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode
+                            .SERVER_ERROR_RESPONSE_CODE);
+                    break;
+
+                case AD_ACTIVE:
+                    errorMessage += "AD_ACTIVE";
+                    mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.UNSPECIFIED);
+                    break;
+
+                case EARLY_REFRESH_REQUEST:
+                    errorMessage += "EARLY_REFRESH_REQUEST";
+                    mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.UNSPECIFIED);
+                    break;
+
+                default:
+                    errorMessage = "UNKNOWN_ERROR" + requestStatus.getStatusCode();
+                    mCustomEventNativeListener.onNativeAdFailed(NativeErrorCode.UNSPECIFIED);
+                    break;
+            }
+            Log.w(TAG, errorMessage);
+            destroy();
         }
 
         @Override
-        public void onAdImpressed(InMobiNative inMobiNative) {
-            Log.d(TAG, "InMobi impression recorded successfully");
-            notifyAdImpressed();
+        public void onAdFullScreenDismissed(InMobiNative inMobiNative) {
+
+        }
+
+        @Override
+        public void onAdFullScreenDisplayed(InMobiNative inMobiNative) {
+
+        }
+
+        @Override
+        public void onUserWillLeaveApplication(InMobiNative inMobiNative) {
+
+        }
+
+        @Override
+        public void onAdImpressed(@NonNull InMobiNative InMobiNative) {
+            if (!mIsImpressionRecorded) {
+                mIsImpressionRecorded = true;
+                notifyAdImpressed();
+            }
+        }
+
+        @Override
+        public void onAdClicked(@NonNull InMobiNative InMobiNative) {
+            if (!mIsClickRecorded) {
+                notifyAdClicked();
+                mIsClickRecorded = true;
+            }
+        }
+
+        @Override
+        public void onMediaPlaybackComplete(@NonNull InMobiNative inMobiNative) {
+
         }
     }
 }

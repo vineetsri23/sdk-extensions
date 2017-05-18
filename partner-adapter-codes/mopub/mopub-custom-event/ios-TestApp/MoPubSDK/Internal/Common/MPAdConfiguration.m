@@ -12,7 +12,10 @@
 #import "math.h"
 #import "NSJSONSerialization+MPAdditions.h"
 #import "MPRewardedVideoReward.h"
+
+#if MP_HAS_NATIVE_PACKAGE
 #import "MPVASTTrackingEvent.h"
+#endif
 
 NSString * const kAdTypeHeaderKey = @"X-Adtype";
 NSString * const kAdUnitWarmingUpHeaderKey = @"X-Warmup";
@@ -35,8 +38,6 @@ NSString * const kWidthHeaderKey = @"X-Width";
 NSString * const kDspCreativeIdKey = @"X-DspCreativeid";
 NSString * const kPrecacheRequiredKey = @"X-PrecacheRequired";
 NSString * const kIsVastVideoPlayerKey = @"X-VastVideoPlayer";
-//TODO: Remove `kForceUIWebViewKey` once WKWebView is proven
-NSString * const kForceUIWebViewKey = @"X-ForceUIWebView";
 
 NSString * const kInterstitialAdTypeHeaderKey = @"X-Fulladtype";
 NSString * const kOrientationTypeHeaderKey = @"X-Orientation";
@@ -59,6 +60,7 @@ NSString * const kAdTypeNativeVideo = @"json_video";
 NSString * const kRewardedVideoCurrencyNameHeaderKey = @"X-Rewarded-Video-Currency-Name";
 NSString * const kRewardedVideoCurrencyAmountHeaderKey = @"X-Rewarded-Video-Currency-Amount";
 NSString * const kRewardedVideoCompletionUrlHeaderKey = @"X-Rewarded-Video-Completion-Url";
+NSString * const kRewardedCurrenciesHeaderKey = @"X-Rewarded-Currencies";
 
 // rewarded playables
 NSString * const kRewardedPlayableDurationHeaderKey = @"X-Rewarded-Duration";
@@ -75,6 +77,7 @@ NSString * const kNativeVideoTrackerTextDictionaryKey = @"text";
 @interface MPAdConfiguration ()
 
 @property (nonatomic, copy) NSString *adResponseHTMLString;
+@property (nonatomic, strong, readwrite) NSArray *availableRewards;
 
 - (MPAdType)adTypeFromHeaders:(NSDictionary *)headers;
 - (NSString *)networkTypeFromHeaders:(NSDictionary *)headers;
@@ -137,8 +140,6 @@ NSString * const kNativeVideoTrackerTextDictionaryKey = @"text";
 
         self.isVastVideoPlayer = [[headers objectForKey:kIsVastVideoPlayerKey] boolValue];
 
-        self.forceUIWebView = [[headers objectForKey:kForceUIWebViewKey] boolValue];
-
         self.creationTimestamp = [NSDate date];
 
         self.creativeId = [headers objectForKey:kCreativeIdHeaderKey];
@@ -154,20 +155,43 @@ NSString * const kNativeVideoTrackerTextDictionaryKey = @"text";
         self.nativeVideoImpressionVisible = [self timeIntervalFromMsHeaders:headers forKey:kNativeVideoImpressionVisibleMsHeaderKey];
 
         self.nativeVideoMaxBufferingTime = [self timeIntervalFromMsHeaders:headers forKey:kNativeVideoMaxBufferingTimeMsHeaderKey];
-
+#if MP_HAS_NATIVE_PACKAGE
         self.nativeVideoTrackers = [self nativeVideoTrackersFromHeaders:headers key:kNativeVideoTrackersHeaderKey];
+#endif
 
 
         // rewarded video
-        NSString *currencyName = [headers objectForKey:kRewardedVideoCurrencyNameHeaderKey];
-        NSNumber *currencyAmount = [self adAmountFromHeaders:headers key:kRewardedVideoCurrencyAmountHeaderKey];
-        if (!currencyName) {
-            currencyName = kMPRewardedVideoRewardCurrencyTypeUnspecified;
+
+        // Attempt to parse the multiple currency header first since this will take
+        // precedence over the older single currency approach.
+        self.availableRewards = [self parseAvailableRewardsFromHeaders:headers];
+        if (self.availableRewards != nil) {
+            // Multiple currencies exist. We will select the first entry in the list
+            // as the default selected reward.
+            if (self.availableRewards.count > 0) {
+                self.selectedReward = self.availableRewards[0];
+            }
+            // In the event that the list of available currencies is empty, we will
+            // follow the behavior from the single currency approach and create an unspecified reward.
+            else {
+                MPRewardedVideoReward * defaultReward = [[MPRewardedVideoReward alloc] initWithCurrencyType:kMPRewardedVideoRewardCurrencyTypeUnspecified amount:@(kMPRewardedVideoRewardCurrencyAmountUnspecified)];
+                self.availableRewards = [NSArray arrayWithObject:defaultReward];
+                self.selectedReward = defaultReward;
+            }
         }
-        if (currencyAmount.integerValue > 0 ) {
-            self.rewardedVideoReward = [[MPRewardedVideoReward alloc] initWithCurrencyType:currencyName amount:currencyAmount];
-        } else {
-            self.rewardedVideoReward = [[MPRewardedVideoReward alloc] initWithCurrencyType:currencyName amount:@(kMPRewardedVideoRewardCurrencyAmountUnspecified)];
+        // Multiple currencies are not available; attempt to process single currency
+        // headers.
+        else {
+            NSString *currencyName = [headers objectForKey:kRewardedVideoCurrencyNameHeaderKey] ?: kMPRewardedVideoRewardCurrencyTypeUnspecified;
+
+            NSNumber *currencyAmount = [self adAmountFromHeaders:headers key:kRewardedVideoCurrencyAmountHeaderKey];
+            if (currencyAmount.integerValue <= 0) {
+                currencyAmount = @(kMPRewardedVideoRewardCurrencyAmountUnspecified);
+            }
+
+            MPRewardedVideoReward * reward = [[MPRewardedVideoReward alloc] initWithCurrencyType:currencyName amount:currencyAmount];
+            self.availableRewards = [NSArray arrayWithObject:reward];
+            self.selectedReward = reward;
         }
 
         self.rewardedVideoCompletionUrl = [headers objectForKey:kRewardedVideoCompletionUrlHeaderKey];
@@ -373,6 +397,7 @@ NSString * const kNativeVideoTrackerTextDictionaryKey = @"text";
     }
 }
 
+#if MP_HAS_NATIVE_PACKAGE
 - (NSDictionary *)nativeVideoTrackersFromHeaders:(NSDictionary *)headers key:(NSString *)key
 {
     NSDictionary *dictFromHeader = [self dictionaryFromHeaders:headers forKey:key];
@@ -408,6 +433,37 @@ NSString * const kNativeVideoTrackerTextDictionaryKey = @"text";
     if (trackers.count > 0) {
         videoTrackerDict[event] = trackers;
     }
+}
+
+#endif
+
+- (NSArray *)parseAvailableRewardsFromHeaders:(NSDictionary *)headers {
+    // The X-Rewarded-Currencies header key doesn't exist. This is probably
+    // not a rewarded ad.
+    NSDictionary * currencies = [self dictionaryFromHeaders:headers forKey:kRewardedCurrenciesHeaderKey];
+    if (currencies == nil) {
+        return nil;
+    }
+
+    // Either the list of available rewards doesn't exist or is empty.
+    // This is an error.
+    NSArray * rewards = [currencies objectForKey:@"rewards"];
+    if (rewards.count == 0) {
+        MPLogError(@"No available rewards found.");
+        return nil;
+    }
+
+    // Parse the list of JSON rewards into objects.
+    NSMutableArray * availableRewards = [NSMutableArray arrayWithCapacity:rewards.count];
+    [rewards enumerateObjectsUsingBlock:^(NSDictionary * rewardDict, NSUInteger idx, BOOL * _Nonnull stop) {
+        NSString * name = rewardDict[@"name"] ?: kMPRewardedVideoRewardCurrencyTypeUnspecified;
+        NSNumber * amount = rewardDict[@"amount"] ?: @(kMPRewardedVideoRewardCurrencyAmountUnspecified);
+
+        MPRewardedVideoReward * reward = [[MPRewardedVideoReward alloc] initWithCurrencyType:name amount:amount];
+        [availableRewards addObject:reward];
+    }];
+
+    return availableRewards;
 }
 
 @end

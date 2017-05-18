@@ -41,6 +41,7 @@ extern NSString * const kIsVastVideoPlayerKey;
 extern NSString * const kRewardedVideoCurrencyNameHeaderKey;
 extern NSString * const kRewardedVideoCurrencyAmountHeaderKey;
 extern NSString * const kRewardedVideoCompletionUrlHeaderKey;
+extern NSString * const kRewardedCurrenciesHeaderKey;
 extern NSString * const kRewardedPlayableDurationHeaderKey;
 extern NSString * const kRewardedPlayableRewardOnClickHeaderKey;
 
@@ -86,12 +87,11 @@ extern NSString * const kAdTypeNativeVideo;
 @property (nonatomic, assign) NSTimeInterval nativeVideoImpressionVisible;
 @property (nonatomic, assign) NSTimeInterval nativeVideoMaxBufferingTime;
 @property (nonatomic) NSDictionary *nativeVideoTrackers;
-@property (nonatomic) MPRewardedVideoReward *rewardedVideoReward;
+@property (nonatomic, readonly) NSArray *availableRewards;
+@property (nonatomic, strong) MPRewardedVideoReward *selectedReward;
 @property (nonatomic, copy) NSString *rewardedVideoCompletionUrl;
 @property (nonatomic, assign) NSTimeInterval rewardedPlayableDuration;
 @property (nonatomic, assign) BOOL rewardedPlayableShouldRewardOnClick;
-//TODO: Remove `forceUIWebView` once WKWebView is proven
-@property (nonatomic, assign) BOOL forceUIWebView;
 
 - (id)initWithHeaders:(NSDictionary *)headers data:(NSData *)data;
 

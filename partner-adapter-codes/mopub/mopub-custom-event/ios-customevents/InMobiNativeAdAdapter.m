@@ -22,10 +22,11 @@
 static NSString *gInMobiTitleKey = @"title";
 static NSString *gInMobiDescriptionKey = @"description";
 static NSString *gInMobiCallToActionKey = @"cta";
+static NSString *gInMobiPrimaryAdViewKey = @"primaryAdView";
 static NSString *gInMobiRatingKey = @"rating";
 static NSString *gInMobiScreenshotKey = @"screenshots";
 static NSString *gInMobiIconKey = @"icon";
-// As of 6-25-2014 this key is editable on InMobi's site
+
 static NSString *gInMobiLandingURLKey = @"landingURL";
 
 /*
@@ -34,7 +35,6 @@ static NSString *gInMobiLandingURLKey = @"landingURL";
 static NSString *const kInMobiImageURL = @"url";
 
 @interface InMobiNativeAdAdapter() <MPAdDestinationDisplayAgentDelegate, MPStaticNativeAdImpressionTimerDelegate>
-
 @property (nonatomic, readonly) IMNative *inMobiNativeAd;
 //@property (nonatomic) MPStaticNativeAdImpressionTimer *impressionTimer;
 @property (nonatomic, readonly) MPAdDestinationDisplayAgent *destinationDisplayAgent;
@@ -59,6 +59,11 @@ static NSString *const kInMobiImageURL = @"url";
 + (void)setCustomKeyForCallToAction:(NSString *)key
 {
     gInMobiCallToActionKey = [key copy];
+}
+
++ (void)setCustomKeyForPrimaryAdView:(NSString *)key
+{
+    gInMobiPrimaryAdViewKey = [key copy];
 }
 
 + (void)setCustomKeyForRating:(NSString *)key
@@ -91,38 +96,33 @@ static NSString *const kInMobiImageURL = @"url";
         NSDictionary *inMobiProperties = [self inMobiProperties];
         NSMutableDictionary *properties = [NSMutableDictionary dictionary];
         
-        if ([inMobiProperties objectForKey:gInMobiRatingKey]) {
-            [properties setObject:[inMobiProperties objectForKey:gInMobiRatingKey] forKey:kAdStarRatingKey];
+        if ([_inMobiNativeAd adRating]) {
+            [properties setObject:[_inMobiNativeAd adRating] forKey:kAdStarRatingKey];
         }
         
-        if ([[inMobiProperties objectForKey:gInMobiTitleKey] length]) {
-            [properties setObject:[inMobiProperties objectForKey:gInMobiTitleKey] forKey:kAdTitleKey];
+        if ([[_inMobiNativeAd adTitle] length]) {
+            [properties setObject:[_inMobiNativeAd adTitle] forKey:kAdTitleKey];
         }
         
-        if ([[inMobiProperties objectForKey:gInMobiDescriptionKey] length]) {
-            [properties setObject:[inMobiProperties objectForKey:gInMobiDescriptionKey] forKey:kAdTextKey];
+        if ([[_inMobiNativeAd adDescription] length]) {
+            [properties setObject:[_inMobiNativeAd adDescription] forKey:kAdTextKey];
         }
         
-        if ([[inMobiProperties objectForKey:gInMobiCallToActionKey] length]) {
-            [properties setObject:[inMobiProperties objectForKey:gInMobiCallToActionKey] forKey:kAdCTATextKey];
+        if ([[_inMobiNativeAd adCtaText] length]) {
+            [properties setObject:[_inMobiNativeAd adCtaText] forKey:kAdCTATextKey];
         }
         
+        //[properties setObject:[_inMobiNativeAd adIcon] forKey:kAdIconImageKey];
         NSDictionary *iconDictionary = [inMobiProperties objectForKey:gInMobiIconKey];
         
         if ([[iconDictionary objectForKey:kInMobiImageURL] length]) {
             [properties setObject:[iconDictionary objectForKey:kInMobiImageURL] forKey:kAdIconImageKey];
         }
         
-        NSDictionary *mainImageDictionary = [inMobiProperties objectForKey:gInMobiScreenshotKey];
-        
-        if ([[mainImageDictionary objectForKey:kInMobiImageURL] length]) {
-            [properties setObject:[mainImageDictionary objectForKey:kInMobiImageURL] forKey:kAdMainImageKey];
-        }
-        
         _properties = properties;
         
-        if ([[inMobiProperties objectForKey:gInMobiLandingURLKey] length]) {
-            _defaultActionURL = [NSURL URLWithString:[inMobiProperties objectForKey:gInMobiLandingURLKey]];
+        if ([_inMobiNativeAd adLandingPageUrl]) {
+            _defaultActionURL = [_inMobiNativeAd adLandingPageUrl];
         } else {
             // Log a warning if we can't find the landing URL since the key can either be "landing_url", "landingURL", or a custom key depending on the date the property was created.
             MPLogWarn(@"WARNING: Couldn't find landing url with key: %@ for InMobi network.  Double check your ad property and call setCustomKeyForLandingURL: with the correct key if necessary.", gInMobiLandingURLKey);
@@ -130,8 +130,6 @@ static NSString *const kInMobiImageURL = @"url";
         
         _destinationDisplayAgent = [[MPCoreInstanceProvider sharedProvider] buildMPAdDestinationDisplayAgentWithDelegate:self];
         
-//        _impressionTimer = [[MPStaticNativeAdImpressionTimer alloc] initWithRequiredSecondsForImpression:2 requiredViewVisibilityPercentage:1];
-//        _impressionTimer.delegate = self;
     }
     return self;
 }
@@ -144,7 +142,7 @@ static NSString *const kInMobiImageURL = @"url";
 
 - (NSDictionary *)inMobiProperties
 {
-    NSData *data = [self.inMobiNativeAd.adContent dataUsingEncoding:NSUTF8StringEncoding];
+    NSData *data = [self.inMobiNativeAd.customAdContent dataUsingEncoding:NSUTF8StringEncoding];
     NSError* error = nil;
     NSDictionary *propertyDictionary = nil;
     if (data) {
@@ -162,7 +160,7 @@ static NSString *const kInMobiImageURL = @"url";
 
 - (void)trackImpression
 {
-//    [self.delegate nativeAdWillLogImpression:self];
+    [self.delegate nativeAdWillLogImpression:self];
 }
 
 #pragma mark - <MPNativeAdAdapter>
@@ -170,12 +168,12 @@ static NSString *const kInMobiImageURL = @"url";
 - (void)willAttachToView:(UIView *)view
 {
 //    [self.impressionTimer startTrackingView:view];
-    [IMNative bindNative:self.inMobiNativeAd toView:view];
+//    [IMNative bindNative:self.inMobiNativeAd toView:view];
 }
 
 - (void)trackClick
 {
-    [self.inMobiNativeAd reportAdClick:nil];
+    [self.inMobiNativeAd reportAdClick];
 }
 
 - (void)displayContentForURL:(NSURL *)URL rootViewController:(UIViewController *)controller
@@ -190,6 +188,12 @@ static NSString *const kInMobiImageURL = @"url";
     
     [self.destinationDisplayAgent displayDestinationForURL:URL];
 }
+
+- (UIView *)mainMediaView
+{
+    return [_inMobiNativeAd primaryViewOfWidth:[self viewControllerForPresentingModalView].view.frame.size.width];
+}
+
 
 #pragma mark - <MPAdDestinationDisplayAgentDelegate>
 
@@ -213,41 +217,46 @@ static NSString *const kInMobiImageURL = @"url";
     [self.delegate nativeAdDidDismissModalForAdapter:self];
 }
 
--(void)nativeDidFinishLoading:(IMNative *)imnative{
-    NSLog(@"In adapter, ad finished loading");
-}
+#pragma mark -<IMNativeDelegate>
 
+-(void)nativeDidFinishLoading:(IMNative*)native{
+    NSLog(@"Native Ad load Successful"); // Ad is ready to be displayed
+}
 -(void)native:(IMNative*)native didFailToLoadWithError:(IMRequestStatus*)error{
-    NSLog(@"In adapter, ad failed to load");
+    NSLog(@"Native Ad load Failed"); // No Fill or error
 }
-
--(void)nativeAdImpressed:(IMNative *)native{
-    NSLog(@"InMobi impression tracked successfully");
-    [self.delegate nativeAdWillLogImpression:self];
-}
-
 -(void)nativeWillPresentScreen:(IMNative*)native{
-    NSLog(@"Native will present screen");
+    NSLog(@"Native Ad will present screen"); //Full Screen experience is about to be presented
     [self.delegate nativeAdWillPresentModalForAdapter:self];
 }
-
 -(void)nativeDidPresentScreen:(IMNative*)native{
-    NSLog(@"Native did present screen");
+    NSLog(@"Native Ad did present screen"); //Full Screen experience has been presented
 }
-
 -(void)nativeWillDismissScreen:(IMNative*)native{
-    NSLog(@"Native will dismiss screen");
+    NSLog(@"Native Ad will dismiss screen"); //Full Screen experience is going to be dismissed
 }
-
 -(void)nativeDidDismissScreen:(IMNative*)native{
-    NSLog(@"Native did dismiss screen");
+    NSLog(@"Native Ad did dismiss screen"); //Full Screen experience has been dismissed
     [self.delegate nativeAdDidDismissModalForAdapter:self];
 }
-
 -(void)userWillLeaveApplicationFromNative:(IMNative*)native{
-    NSLog(@"User will leave application from native");
+    NSLog(@"User leave"); //User is about to leave the app on clicking the ad
     [self.delegate nativeAdWillLeaveApplicationFromAdapter:self];
 }
+-(void)native:(IMNative *)native didInteractWithParams:(NSDictionary *)params{
+    NSLog(@"User clicked"); // Called when the user clicks on the ad.
+}
+-(void)nativeAdImpressed:(IMNative *)native{
+    NSLog(@"User viewed the ad"); // Called when impression event is fired.
+    [self.delegate nativeAdWillLogImpression:self];
+}
+-(void)nativeDidFinishPlayingMedia:(IMNative*)native{
+    NSLog(@"The Video has finished playing"); // Called when the video has finished playing. Used for preroll use-case
+}
+-(void)native:(IMNative *)native rewardActionCompletedWithRewards:(NSDictionary *)rewards{
+    NSLog(@"Rewarded"); // Called when the user is rewarded to watch the ad.
+}
+
 
 
 

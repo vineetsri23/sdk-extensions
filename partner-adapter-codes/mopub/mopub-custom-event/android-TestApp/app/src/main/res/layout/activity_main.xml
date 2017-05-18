@@ -25,13 +25,6 @@
         android:text="@string/LoadInterstitial" />
 
     <Button
-        android:id="@+id/btnLoadNativeStrands"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="50dp"
-        android:text="@string/LoadNativeStrands" />
-
-    <Button
         android:id="@+id/btnLoadNative"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"

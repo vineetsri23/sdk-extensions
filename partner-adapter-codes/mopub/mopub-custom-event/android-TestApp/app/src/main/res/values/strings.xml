@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">My Application</string>
+    <string name="app_name">MoPub CE Sample App</string>
     <string name="dummy_section_text">Coming Soon!</string>
 
     <string name="action_reload">Re-load Ad</string>
@@ -14,5 +14,7 @@
     <string name="LoadNative">LOAD Native AD</string>
     <string name="LoadNativeStrands">LOAD Native Strands</string>
     <string name="LoadRewarded">LOAD Rewarded AD</string>
+    <string name="native_main_image">native_main_image</string>
+    <string name="learn_more">learn more</string>
 
 </resources>

@@ -58,6 +58,7 @@
  *      title           - "title"
  *      description     - "description"
  *      call to action  - "cta"
+ *      primaryView     - primary ad View
  *      rating          - "rating"
  *      screenshot      - "screenshots"
  *      icon            - "icon"
@@ -67,6 +68,7 @@
 + (void)setCustomKeyForTitle:(NSString *)key;
 + (void)setCustomKeyForDescription:(NSString *)key;
 + (void)setCustomKeyForCallToAction:(NSString *)key;
++ (void)setCustomKeyForPrimaryAdView:(NSString *)key;
 + (void)setCustomKeyForRating:(NSString *)key;
 + (void)setCustomKeyForScreenshot:(NSString *)key;
 + (void)setCustomKeyForIcon:(NSString *)key;

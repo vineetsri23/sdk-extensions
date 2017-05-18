@@ -1,4 +1,4 @@
-package com.inmobi.showcase;
+package com.mopub.nativeads;
 
 import android.app.Activity;
 import android.content.Context;
